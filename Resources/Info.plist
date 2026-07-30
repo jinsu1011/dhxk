@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleDevelopmentRegion</key><string>ko</string>
+  <key>CFBundleExecutable</key><string>HangulInputFixer</string>
+  <key>CFBundleIdentifier</key><string>local.hangul-input-fixer</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleDisplayName</key><string>dhxk</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundleName</key><string>dhxk</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>0.2.0</string>
+  <key>CFBundleVersion</key><string>2</string>
+  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSAccessibilityUsageDescription</key><string>현재 입력 필드의 오입력 단어를 안전하게 교체하고 되돌리기 위해 필요합니다.</string>
+  <key>NSInputMonitoringUsageDescription</key><string>한·영 키보드 오입력을 단어 단위로 감지하기 위해 필요합니다.</string>
+  <key>SKALARegistrationRequired</key><false/>
+  <key>SKALARegistrationEndpoint</key><string></string>
+</dict></plist>

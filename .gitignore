@@ -1,0 +1,15 @@
+.build/
+.swiftpm/
+dist/
+release/
+.build-arm64/
+.build-x86_64/
+.DS_Store
+
+# Local progress and handoff notes (may contain machine-specific paths)
+DHXK_PROGRESS.md
+HANGEUL_MVP_PROGRESS.md
+AI_HANDOFF_PROMPT.md
+NEXT_STEPS.md
+집에서_수정하기.md
+Resources/AppIcon.iconset/icon_.png
