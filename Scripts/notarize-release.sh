@@ -41,6 +41,7 @@ xcrun stapler validate "$APP_PATH"
 spctl --assess --type execute --verbose=4 "$APP_PATH"
 
 ditto -c -k --keepParent "$APP_PATH" "$FINAL_ZIP"
-shasum -a 256 "$FINAL_ZIP" > "$FINAL_ZIP.sha256"
+cd "$PROJECT_DIR/release"
+shasum -a 256 "${FINAL_ZIP:t}" > "${FINAL_ZIP:t}.sha256"
 print "Created $FINAL_ZIP"
 print "Created $FINAL_ZIP.sha256"

@@ -22,15 +22,19 @@ dhxk는 macOS에서 한·영 입력 상태를 착각해 입력한 단어를 두�
 - 입력 모니터링 권한
 - 두벌식 한글 입력 소스
 
-공식 배포본은 Apple Silicon과 Intel을 모두 포함한 Universal 2 ZIP 또는 DMG로 제공하는 것을 목표로 한다.
+현재 SKALA 파일럿 Pre-release는 Apple Silicon과 Intel을 모두 포함한 Universal 2 ZIP으로 제공한다.
 
 ## 3. 설치
 
-1. 공식 GitHub Releases 또는 제품 홈페이지에서 최신 **공증 버전**을 다운로드한다.
-2. ZIP이면 Finder에서 압축을 푼다. DMG이면 디스크 이미지를 연다.
+1. 공식 GitHub Releases에서 최신 SKALA 파일럿 Pre-release ZIP을 다운로드한다.
+2. Finder에서 ZIP 압축을 푼다.
 3. `dhxk.app`을 `/Applications` 폴더로 복사한다.
-4. Applications에서 앱을 실행한다.
-5. 화면 상단 메뉴 막대에서 `한↔영` 아이콘을 확인한다.
+4. Applications에서 앱을 한 번 실행해 macOS 차단 메시지를 확인한다.
+5. 시스템 설정 → 개인정보 보호 및 보안으로 이동해 `그래도 열기`를 누른다.
+6. 다시 나타나는 확인 창에서 `열기`를 누른다.
+7. 화면 상단 메뉴 막대에서 `한↔영` 아이콘을 확인한다.
+
+현재 무료 파일럿판은 Developer ID 서명과 Apple 공증을 받지 않은 ad-hoc 앱이다. 공식 GitHub 저장소와 SHA-256을 확인한 경우에만 위 예외를 허용한다. 관리되는 Mac에서는 기관 보안 정책 때문에 `그래도 열기`가 표시되지 않을 수 있다.
 
 ### SKALA 파일럿 최초 등록
 
@@ -48,12 +52,12 @@ dhxk는 macOS에서 한·영 입력 상태를 착각해 입력한 단어를 두�
 
 ### 공식 파일 확인
 
-- 소스 코드 자동 ZIP이 아니라 Release 자산의 `dhxk-버전-universal.zip`을 받는다.
+- 소스 코드 자동 ZIP이 아니라 Release 자산의 `dhxk-0.3.0-skala-universal-adhoc.zip`을 받는다.
 - 같은 Release의 `.sha256` 파일과 다운로드 ZIP의 SHA-256을 비교할 수 있다.
-- 개발자 이름을 확인할 수 없거나 macOS가 손상된 앱이라고 표시하면 실행하지 말고 공식 Release에서 다시 받는다.
+- 개발자를 확인할 수 없다는 경고는 현재 무료 파일럿판에서 예상되는 동작이다. `앱이 손상됨` 또는 악성코드 경고가 표시되면 실행하지 말고 공식 Release에서 다시 받는다.
 
 ```bash
-shasum -a 256 ~/Downloads/dhxk-0.2.0-universal.zip
+shasum -a 256 ~/Downloads/dhxk-0.3.0-skala-universal-adhoc.zip
 ```
 
 ## 4. 권한 설정
@@ -183,18 +187,18 @@ Accessibility 표준 텍스트 입력을 제공하는 대부분의 일반 앱에
 - 특정 앱에서 계속 문제가 나면 해당 앱을 제외 목록에 추가한다.
 
 ```bash
-defaults write local.hangul-input-fixer ExcludedBundleIDs \
+defaults write com.jinsu1011.dhxk ExcludedBundleIDs \
   -array com.example.Application
 ```
 
 ## 11. 업데이트
 
-1. 공식 GitHub Release에서 새 공증 버전을 다운로드한다.
+1. 공식 GitHub Release에서 새 파일럿 버전을 다운로드하고 SHA-256을 확인한다.
 2. 앱을 종료한다.
 3. 새 앱을 `/Applications`의 기존 앱 위에 복사한다.
 4. 실행 후 권한 상태를 확인한다.
 
-정식 버전에서 Bundle ID와 Developer ID 서명이 유지되면 일반적으로 권한을 유지하기 쉽다. 개발용 ad-hoc 빌드는 업데이트할 때 권한을 다시 요구할 수 있다.
+현재 ad-hoc 파일럿 빌드는 코드 요구사항이 버전마다 달라질 수 있어 업데이트할 때 권한을 다시 요구할 수 있다.
 
 ## 12. 삭제
 
@@ -206,7 +210,7 @@ defaults write local.hangul-input-fixer ExcludedBundleIDs \
 앱은 입력 문자열을 파일에 저장하지 않는다. 환경설정까지 삭제하려면 터미널에서 다음을 실행할 수 있다.
 
 ```bash
-defaults delete local.hangul-input-fixer
+defaults delete com.jinsu1011.dhxk
 ```
 
 이 명령은 제외 앱과 앱 설정을 삭제하므로 필요한 경우에만 사용한다.

@@ -92,7 +92,8 @@ if [[ "$SIGNING_IDENTITY" == "-" ]]; then
     fi
     rm -f "$ADHOC_ARCHIVE_PATH"
     COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc "$APP_PATH" "$ADHOC_ARCHIVE_PATH"
-    shasum -a 256 "$ADHOC_ARCHIVE_PATH" > "$ADHOC_ARCHIVE_PATH.sha256"
-    print "Created $ADHOC_ARCHIVE_PATH (local testing only)"
+    cd "$PROJECT_DIR/release"
+    shasum -a 256 "${ADHOC_ARCHIVE_PATH:t}" > "${ADHOC_ARCHIVE_PATH:t}.sha256"
+    print "Created $ADHOC_ARCHIVE_PATH (ad-hoc; Gatekeeper override required)"
     print "Created $ADHOC_ARCHIVE_PATH.sha256"
 fi

@@ -116,7 +116,7 @@ HangulInputCore: DubeolsikConverter → HangulComposer (macOS API 비의존)
 추가 제외 앱은 bundle ID를 사용해 다음처럼 설정할 수 있습니다. 앱을 다시 켜면 적용됩니다.
 
 ```bash
-defaults write local.hangul-input-fixer ExcludedBundleIDs -array com.example.Editor com.example.RemoteDesktop
+defaults write com.jinsu1011.dhxk ExcludedBundleIDs -array com.example.Editor com.example.RemoteDesktop
 ```
 
 기본 제외 목록은 `Sources/HangulInputApp/SecurityGuard.swift`에 있습니다.
@@ -132,9 +132,9 @@ defaults write local.hangul-input-fixer ExcludedBundleIDs -array com.example.Edi
 
 ## 배포
 
-현재 ad-hoc arm64 앱은 로컬 개발용입니다. 공개 배포에는 Developer ID 서명, Hardened Runtime, Apple 공증, Universal 2 빌드가 필요합니다. 권장 배포 경로와 명령은 [`DISTRIBUTION.md`](DISTRIBUTION.md)에 정리되어 있습니다.
+`v0.3.0` SKALA 파일럿은 비용 없는 내부 시험을 위해 ad-hoc 서명한 Universal 2 Pre-release로 배포합니다. 사용자는 공식 Release와 SHA-256을 확인하고 시스템 설정 → 개인정보 보호 및 보안에서 `그래도 열기`를 직접 승인해야 합니다. 경고 없는 일반 배포로 전환하려면 Developer ID 서명과 Apple 공증이 필요합니다. 권장 배포 경로와 명령은 [`DISTRIBUTION.md`](DISTRIBUTION.md)에 정리되어 있습니다.
 
-권장 사용자 흐름은 `GitHub Releases 또는 제품 웹사이트 → 공증된 ZIP/DMG 다운로드 → Applications에 복사 → 권한 허용`입니다. GitHub와 앱 다운로드는 양자택일이 아닙니다. GitHub Releases에 다운로드할 앱 ZIP/DMG를 올리는 방식입니다.
+현재 파일럿 사용자 흐름은 `GitHub Pre-release → ad-hoc Universal 2 ZIP과 SHA-256 다운로드 → Applications에 복사 → Gatekeeper 예외 승인 → 권한 허용`입니다. 상세 설치 절차는 [`USER_MANUAL.md`](USER_MANUAL.md)를 따릅니다.
 
 - 배포 담당자: [`GITHUB_DISTRIBUTION_MANUAL.md`](GITHUB_DISTRIBUTION_MANUAL.md)
 - 일반 사용자: [`USER_MANUAL.md`](USER_MANUAL.md)
