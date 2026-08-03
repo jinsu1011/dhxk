@@ -3,7 +3,7 @@
 ## 제품
 
 - [x] production Bundle ID 확정 — `com.jinsu1011.dhxk`
-- [x] 버전과 빌드 번호 증가 — 파일럿 `0.3.1 (5)`
+- [x] 버전과 빌드 번호 증가 — 파일럿 `0.3.2 (6)`
 - [ ] 지원 URL·개인정보 처리방침 URL 확인
 - [x] Release notes 작성 — 무료 ad-hoc Pre-release와 Gatekeeper 수동 절차 명시
 - [ ] SKALA 개인정보 처리 책임자·문의 채널·교육 종료일 확정
@@ -30,7 +30,7 @@
 - [ ] Apple 공증 Accepted — 유료 정식 배포로 연기
 - [ ] ticket staple 확인 — 유료 정식 배포로 연기
 - [ ] Gatekeeper accepted 확인 — 무료 파일럿은 사용자 `그래도 열기` 필요
-- [x] SHA-256 생성 — `0.3.1 (5)` SKALA ad-hoc Pre-release ZIP
+- [x] SHA-256 생성 — `0.3.2 (6)` SKALA ad-hoc Pre-release ZIP
 - [x] production Apps Script `/exec` URL 삽입 및 v2 중복 멱등 응답 확인
 - [x] 민감 입력 fail-closed와 AX 범위 제한 읽기 적용
 
@@ -38,7 +38,7 @@
 
 - [ ] 깨끗한 Apple Silicon Mac 시험
 - [ ] 깨끗한 Intel Mac 시험
-- [ ] GitHub `v0.3.1` Pre-release 업로드
+- [ ] GitHub `v0.3.2` Pre-release 업로드
 - [ ] 설치·권한·업데이트 문서 링크 확인
 - [ ] 내부 시험 후 정식 Release 전환
 - [ ] Sheet 공유 권한 최소화와 보유기간 삭제 일정 등록

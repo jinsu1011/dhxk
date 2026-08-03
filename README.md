@@ -121,8 +121,28 @@ defaults write com.jinsu1011.dhxk ExcludedBundleIDs -array com.example.Editor co
 
 기본 제외 목록은 `Sources/HangulInputApp/SecurityGuard.swift`에 있습니다.
 
+## 실제 입력으로 검증한 지원 범위 (`0.3.2`)
+
+**"모든 앱에서 동작"은 보장하지 않습니다.** macOS 앱마다 접근성 구현이 다르고, 비밀번호·보안 입력창은 의도적으로 변환을 차단합니다. 아래는 `0.3.2` 빌드에 실제 물리 키 이벤트를 넣어 확인한 결과입니다.
+
+| 대상 | 결과 | 근거 |
+| --- | --- | --- |
+| Chrome `<textarea>` | ✅ `안녕하세요 ` | AX 값 판독, 첫 글자 잔류 없음 |
+| Chrome `<input type=text>` | ✅ `안녕하세요 ` | AX 값 판독 |
+| Chrome `<input type=password>` | ✅ **변환 안 함** | `AXSecureTextField` 서브롤로 차단 |
+| Chrome User ID 입력란 | ✅ **변환 안 함** | 원문 유지 |
+| Chrome OTP 입력란 | ✅ **변환 안 함** | 원문 유지 |
+| Claude Desktop 입력창 | ⚠️ 변환됨, 구분자 공백 유실 | 아래 참조 |
+| Antigravity 2.5.0 입력창 | ✅ `안녕하세요 ` | 화면으로 확인 |
+| 클립보드 보존 | ✅ 복원됨 | 붙여넣기 전후 타입 목록과 SHA-256 동일 |
+
+위 표에 없는 앱은 **검증하지 않았습니다.** 자세한 근거와 제약은 [`RELEASE_NOTES.md`](RELEASE_NOTES.md)에 있습니다.
+
 ## 알려진 제한사항
 
+- Claude Desktop 입력창에서는 변환 후 구분자 공백이 입력되지 않습니다. 변환 자체와 첫 글자 잔류는 정상입니다. ProseMirror 계열 편집기가 붙여넣은 문자열 끝의 공백을 정규화해 지우기 때문이며, 변환 후 스페이스를 한 번 더 누르면 됩니다.
+- Antigravity는 화면은 정상 변환되지만 접근성 값이 갱신되지 않아 AX로는 변환 전 문자열이 계속 보입니다.
+- ad-hoc 서명은 지정 요구사항이 cdhash에 고정되므로, 업데이트하면 손쉬운 사용·입력 모니터링 승인이 폐기됩니다. 기존 항목을 `−`로 제거한 뒤 `+`로 다시 추가해야 합니다. 토글만 켜면 동작하지 않습니다.
 - 앱마다 접근성 구현이 달라 문자 교체 성공 여부도 다릅니다. 포커스된 일반 텍스트 AX 요소가 확인되는 경우에만 동작하며 임의의 모든 앱을 허용하지 않습니다.
 - AX 정보를 전혀 제공하지 않는 앱과 입력창은 일반 ID 필드와 본문을 구분할 수 없어 fail-closed로 차단합니다. 로그인 화면에서는 자동 감지도 꺼 두는 것이 가장 안전합니다.
 - 한글 IME 조합 중 Accessibility 값 갱신 시점은 앱마다 다릅니다. 현재 MVP는 경계 키를 누르기 직전 AX 값과 실제 caret 범위를 확인합니다.
@@ -132,7 +152,7 @@ defaults write com.jinsu1011.dhxk ExcludedBundleIDs -array com.example.Editor co
 
 ## 배포
 
-`v0.3.1` SKALA 파일럿은 비용 없는 내부 시험을 위해 ad-hoc 서명한 Universal 2 Pre-release로 배포합니다. 사용자는 공식 Release와 SHA-256을 확인하고 시스템 설정 → 개인정보 보호 및 보안에서 `그래도 열기`를 직접 승인해야 합니다. 경고 없는 일반 배포로 전환하려면 Developer ID 서명과 Apple 공증이 필요합니다. 권장 배포 경로와 명령은 [`DISTRIBUTION.md`](DISTRIBUTION.md)에 정리되어 있습니다.
+`v0.3.2` SKALA 파일럿은 비용 없는 내부 시험을 위해 ad-hoc 서명한 Universal 2 Pre-release로 배포합니다. 사용자는 공식 Release와 SHA-256을 확인하고 시스템 설정 → 개인정보 보호 및 보안에서 `그래도 열기`를 직접 승인해야 합니다. 경고 없는 일반 배포로 전환하려면 Developer ID 서명과 Apple 공증이 필요합니다. 권장 배포 경로와 명령은 [`DISTRIBUTION.md`](DISTRIBUTION.md)에 정리되어 있습니다.
 
 현재 파일럿 사용자 흐름은 `GitHub Pre-release → ad-hoc Universal 2 ZIP과 SHA-256 다운로드 → Applications에 복사 → Gatekeeper 예외 승인 → 권한 허용`입니다. 상세 설치 절차는 [`USER_MANUAL.md`](USER_MANUAL.md)를 따릅니다.
 

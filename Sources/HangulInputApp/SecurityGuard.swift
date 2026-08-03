@@ -4,6 +4,7 @@ import ApplicationServices
 import HangulInputCore
 
 enum SecurityGuard {
+    private static var enhancedAccessibilityPIDs = Set<pid_t>()
     private static let defaultExcludedBundleIDs: Set<String> = [
         "com.apple.Terminal", "com.googlecode.iterm2", "com.microsoft.VSCode",
         "com.apple.dt.Xcode", "com.jetbrains.intellij", "com.jetbrains.CLion",
@@ -11,6 +12,35 @@ enum SecurityGuard {
     ]
 
     static var isSecureInputEnabled: Bool { IsSecureEventInputEnabled() }
+
+    @discardableResult
+    static func prepareAccessibility(for application: NSRunningApplication?) -> AXError? {
+        guard let application, !application.isTerminated else { return nil }
+        let element = AXUIElementCreateApplication(application.processIdentifier)
+        if CompatibilityAppClassifier.requiresEnhancedAccessibility(
+            bundleIdentifier: application.bundleIdentifier
+        ) {
+            let result = AXUIElementSetAttributeValue(
+                element, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue
+            )
+            if result == .success { enhancedAccessibilityPIDs.insert(application.processIdentifier) }
+            return result
+        }
+        guard CompatibilityAppClassifier.requiresManualAccessibility(
+            bundleIdentifier: application.bundleIdentifier
+        ) else { return nil }
+        return AXUIElementSetAttributeValue(element, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+    }
+
+    static func releasePreparedAccessibility() {
+        for pid in enhancedAccessibilityPIDs {
+            let element = AXUIElementCreateApplication(pid)
+            _ = AXUIElementSetAttributeValue(
+                element, "AXEnhancedUserInterface" as CFString, kCFBooleanFalse
+            )
+        }
+        enhancedAccessibilityPIDs.removeAll()
+    }
 
     static var isExcludedFrontmostApp: Bool {
         guard let id = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return true }
@@ -23,7 +53,12 @@ enum SecurityGuard {
         var roleValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleValue) == .success,
               let role = roleValue as? String,
-              [kAXTextFieldRole as String, kAXTextAreaRole as String, kAXComboBoxRole as String].contains(role)
+              AccessibilityTextRoleClassifier.isEligible(
+                role: role,
+                valueAvailable: hasAttribute(kAXValueAttribute as CFString, on: element),
+                selectedRangeSettable: isSettable(kAXSelectedTextRangeAttribute as CFString, on: element),
+                selectedTextSettable: isSettable(kAXSelectedTextAttribute as CFString, on: element)
+              )
         else { return false }
 
         var subroleValue: CFTypeRef?
@@ -73,9 +108,82 @@ enum SecurityGuard {
     static func focusedElement() -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value) == .success,
+        if AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &value) == .success,
+           let value {
+            return unsafeBitCast(value, to: AXUIElement.self)
+        }
+
+        // Chromium/Electron 앱은 시스템 전역 AX 조회에는 포커스 요소를 반환하지
+        // 않지만 앱 AX 루트에는 반환하는 경우가 있다. 현재 전면 앱으로 범위를
+        // 제한해 다시 조회하며, 여기서도 실패하면 기존처럼 fail-closed 한다.
+        guard let frontmost = NSWorkspace.shared.frontmostApplication,
+              !frontmost.isTerminated else { return nil }
+        let application = AXUIElementCreateApplication(frontmost.processIdentifier)
+        if let focused = focusedElement(in: application) { return focused }
+
+        // Electron 공식 접근성 경로다. Chromium 기반 호환 앱이 접근성 트리를
+        // 지연 생성한 경우에만 활성화하고, 활성화 뒤에도 요소가 없으면 차단한다.
+        if CompatibilityAppClassifier.requiresManualAccessibility(bundleIdentifier: frontmost.bundleIdentifier) ||
+            CompatibilityAppClassifier.requiresEnhancedAccessibility(bundleIdentifier: frontmost.bundleIdentifier) {
+            _ = prepareAccessibility(for: frontmost)
+            if let focused = focusedElement(in: application) { return focused }
+        }
+        if CompatibilityAppClassifier.supportsFallback(bundleIdentifier: frontmost.bundleIdentifier),
+           let focused = focusedEditableDescendant(in: application) {
+            return focused
+        }
+        return nil
+    }
+
+    private static func focusedElement(in application: AXUIElement) -> AXUIElement? {
+        var value: CFTypeRef?
+        if AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &value) == .success,
+           let value {
+            return unsafeBitCast(value, to: AXUIElement.self)
+        }
+
+        // 일부 Electron 앱은 포커스 요소를 앱 루트가 아니라 포커스 창에만
+        // 노출한다. 창 자체를 확인한 뒤 같은 속성을 한 번 더 조회한다.
+        var windowValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(application, kAXFocusedWindowAttribute as CFString, &windowValue) == .success,
+              let windowValue else { return nil }
+        let window = unsafeBitCast(windowValue, to: AXUIElement.self)
+        value = nil
+        guard AXUIElementCopyAttributeValue(window, kAXFocusedUIElementAttribute as CFString, &value) == .success,
               let value else { return nil }
         return unsafeBitCast(value, to: AXUIElement.self)
+    }
+
+    private static func focusedEditableDescendant(in application: AXUIElement) -> AXUIElement? {
+        var queue: [(AXUIElement, Int)] = [(application, 0)]
+        var visited = Set<CFHashCode>()
+        var index = 0
+        let maximumElements = 300
+        let maximumDepth = 16
+
+        while index < queue.count, index < maximumElements {
+            let (element, depth) = queue[index]
+            index += 1
+            let identity = CFHash(element)
+            guard visited.insert(identity).inserted else { continue }
+
+            var focusedValue: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element, kAXFocusedAttribute as CFString, &focusedValue) == .success,
+               (focusedValue as? Bool) == true,
+               isSafeTextElement(element) {
+                return element
+            }
+
+            guard depth < maximumDepth else { continue }
+            var childrenValue: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenValue) == .success,
+                  let children = childrenValue as? [AXUIElement] else { continue }
+            for child in children.prefix(100) {
+                queue.append((child, depth + 1))
+                if queue.count >= maximumElements { break }
+            }
+        }
+        return nil
     }
 
     static func diagnosticDescription() -> String {

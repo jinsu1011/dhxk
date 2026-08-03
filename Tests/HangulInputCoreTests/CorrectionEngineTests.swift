@@ -8,6 +8,31 @@ func runCorrectionEngineTests(_ suite: TestSuite) {
     suite.expect(engine.evaluate("EMldjTMrlsk", direction: .englishToKorean)?.replacement == "띄어쓰기나", "대문자 혼합 판정")
     suite.expect(engine.evaluate("TMaus", direction: .englishToKorean)?.replacement == "쓰면", "대문자 일반키 판정")
 
+    suite.expect(
+        ReplacementTokenValidator.exactDisplayedToken(
+            rawKeys: "dkssudgktpdy", displayedToken: "dkssudgktpdy", direction: .englishToKorean
+        ) == "dkssudgktpdy",
+        "영문→한글 표시 토큰 완전 일치 허용"
+    )
+    suite.expect(
+        ReplacementTokenValidator.exactDisplayedToken(
+            rawKeys: "dkssudgktpdy", displayedToken: "kssudgktpdy", direction: .englishToKorean
+        ) == nil,
+        "Chrome 한 글자 지연 표시 토큰 부분 교체 차단"
+    )
+    suite.expect(
+        ReplacementTokenValidator.exactDisplayedToken(
+            rawKeys: "hello", displayedToken: "ㅗ디ㅣㅐ", direction: .koreanToEnglish
+        ) == "ㅗ디ㅣㅐ",
+        "한글→영문 표시 토큰 완전 일치 허용"
+    )
+    suite.expect(
+        ReplacementTokenValidator.exactDisplayedToken(
+            rawKeys: "hello", displayedToken: "디ㅣㅐ", direction: .koreanToEnglish
+        ) == nil,
+        "한글 IME 부분 표시 토큰 교체 차단"
+    )
+
     for token in ["test", "hello", "https://openai.com", "me@example.com", "/tmp/file", "foo.swift", "123456", "some_var"] {
         let decision = engine.evaluate(token, direction: .englishToKorean)
         suite.expect(decision?.shouldAutoCorrect != true, "제외/보수 판정: \(token)")
@@ -81,11 +106,62 @@ func runCorrectionEngineTests(_ suite: TestSuite) {
 
     for bundleID in [
         "com.google.Chrome", "com.openai.codex", "com.openai.chat",
-        "com.anthropic.claudefordesktop", "com.kakao.KakaoTalkMac", "notion.id",
+        "com.anthropic.claudefordesktop", "com.google.antigravity",
+        "com.kakao.KakaoTalkMac", "notion.id",
         "com.apple.Pages", "com.apple.iWork.Pages",
     ] {
         suite.expect(CompatibilityAppClassifier.supportsFallback(bundleIdentifier: bundleID), "호환 앱 분류: \(bundleID)")
     }
+    for bundleID in ["com.anthropic.claudefordesktop", "com.google.antigravity"] {
+        suite.expect(
+            CompatibilityAppClassifier.requiresManualAccessibility(bundleIdentifier: bundleID),
+            "Chromium 접근성 활성화 분류: \(bundleID)"
+        )
+        suite.expect(
+            CompatibilityAppClassifier.prefersPasteReplacement(bundleIdentifier: bundleID),
+            "Electron 붙여넣기 치환 우선: \(bundleID)"
+        )
+    }
+    suite.expect(
+        CompatibilityAppClassifier.requiresEnhancedAccessibility(bundleIdentifier: "com.google.Chrome"),
+        "Chrome AXEnhancedUserInterface 활성화 분류"
+    )
+    suite.expect(
+        CompatibilityAppClassifier.prefersSyntheticReplacement(bundleIdentifier: "com.google.Chrome"),
+        "Chrome 합성키 치환 우선"
+    )
+    for bundleID in ["com.anthropic.claudefordesktop", "com.google.antigravity"] {
+        suite.expect(
+            !CompatibilityAppClassifier.prefersSyntheticReplacement(bundleIdentifier: bundleID),
+            "Electron AX 치환 우선: \(bundleID)"
+        )
+    }
+    suite.expect(
+        !CompatibilityAppClassifier.prefersSyntheticReplacement(bundleIdentifier: "com.apple.TextEdit"),
+        "네이티브 앱 AX 치환 유지"
+    )
+    suite.expect(
+        !CompatibilityAppClassifier.prefersPasteReplacement(bundleIdentifier: "com.apple.TextEdit"),
+        "네이티브 앱 붙여넣기 치환 제외"
+    )
+    suite.expect(
+        !CompatibilityAppClassifier.requiresManualAccessibility(bundleIdentifier: "com.apple.TextEdit"),
+        "네이티브 앱 Chromium 접근성 활성화 제외"
+    )
+    suite.expect(
+        AccessibilityTextRoleClassifier.isEligible(
+            role: "AXGroup", valueAvailable: true,
+            selectedRangeSettable: true, selectedTextSettable: true
+        ),
+        "Chrome contenteditable AXGroup 허용"
+    )
+    suite.expect(
+        !AccessibilityTextRoleClassifier.isEligible(
+            role: "AXGroup", valueAvailable: true,
+            selectedRangeSettable: false, selectedTextSettable: false
+        ),
+        "일반 AXGroup 차단"
+    )
     for bundleID in ["com.apple.Terminal", "com.microsoft.VSCode", "unknown.app"] {
         suite.expect(!CompatibilityAppClassifier.supportsFallback(bundleIdentifier: bundleID), "위험/미확인 앱 대체 경로 차단: \(bundleID)")
     }

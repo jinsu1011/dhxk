@@ -8,7 +8,14 @@ PRODUCT_NAME=HangulInputFixer
 APP_NAME=dhxk
 ARM_BUILD_PATH="$PROJECT_DIR/.build-arm64"
 INTEL_BUILD_PATH="$PROJECT_DIR/.build-x86_64"
-APP_PATH="$PROJECT_DIR/release/$APP_NAME.app"
+RELEASE_APP_PATH="$PROJECT_DIR/release/$APP_NAME.app"
+# The project lives in iCloud Drive, which re-attaches FinderInfo/resource-fork
+# metadata to bundles at unpredictable times. codesign rejects those attributes
+# ("resource fork, Finder information, or similar detritus not allowed"), and it
+# can happen after signing too, so the authoritative bundle is assembled, signed,
+# verified and archived on local disk. release/ only receives copies.
+STAGE_ROOT="/private/tmp/dhxk-universal-stage"
+APP_PATH="$STAGE_ROOT/$APP_NAME.app"
 SIGNING_IDENTITY=${SIGNING_IDENTITY:--}
 BUNDLE_ID=${BUNDLE_ID:-local.hangul-input-fixer}
 VERSION=${VERSION:-0.1.0}
@@ -33,13 +40,17 @@ if [[ "$SKALA_REGISTRATION_REQUIRED" == "true" && "$REGISTRATION_ENDPOINT" != ht
     exit 1
 fi
 
-if [[ "$APP_PATH" != "$PROJECT_DIR/release/dhxk.app" ]]; then
-    print -u2 "Unexpected release path: $APP_PATH"
+if [[ "$APP_PATH" != "/private/tmp/dhxk-universal-stage/dhxk.app" ]]; then
+    print -u2 "Unexpected staging path: $APP_PATH"
+    exit 1
+fi
+if [[ "$RELEASE_APP_PATH" != "$PROJECT_DIR/release/dhxk.app" ]]; then
+    print -u2 "Unexpected release path: $RELEASE_APP_PATH"
     exit 1
 fi
 
 cd "$PROJECT_DIR"
-mkdir -p .build/cache/clang .build/cache/swiftpm release
+mkdir -p .build/cache/clang .build/cache/swiftpm release "$STAGE_ROOT"
 
 export CLANG_MODULE_CACHE_PATH="$PROJECT_DIR/.build/cache/clang"
 export SWIFTPM_MODULECACHE_OVERRIDE="$PROJECT_DIR/.build/cache/swiftpm"
@@ -86,14 +97,32 @@ print "Created $APP_PATH"
 
 if [[ "$SIGNING_IDENTITY" == "-" ]]; then
     if [[ "$SKALA_REGISTRATION_REQUIRED" == "true" ]]; then
-        ADHOC_ARCHIVE_PATH="$PROJECT_DIR/release/dhxk-$VERSION-skala-universal-adhoc.zip"
+        ARCHIVE_NAME="dhxk-$VERSION-skala-universal-adhoc.zip"
     else
-        ADHOC_ARCHIVE_PATH="$PROJECT_DIR/release/dhxk-$VERSION-universal-adhoc.zip"
+        ARCHIVE_NAME="dhxk-$VERSION-universal-adhoc.zip"
     fi
-    rm -f "$ADHOC_ARCHIVE_PATH"
-    COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc "$APP_PATH" "$ADHOC_ARCHIVE_PATH"
+    STAGED_ARCHIVE_PATH="$STAGE_ROOT/$ARCHIVE_NAME"
+    ADHOC_ARCHIVE_PATH="$PROJECT_DIR/release/$ARCHIVE_NAME"
+
+    # Archive from the clean staged bundle so no iCloud metadata is captured.
+    rm -f "$STAGED_ARCHIVE_PATH" "$ADHOC_ARCHIVE_PATH" "$ADHOC_ARCHIVE_PATH.sha256"
+    COPYFILE_DISABLE=1 ditto -c -k --keepParent --norsrc --noextattr "$APP_PATH" "$STAGED_ARCHIVE_PATH"
+    cp "$STAGED_ARCHIVE_PATH" "$ADHOC_ARCHIVE_PATH"
+
+    STAGED_SHA=$(shasum -a 256 "$STAGED_ARCHIVE_PATH" | cut -d' ' -f1)
+    RELEASE_SHA=$(shasum -a 256 "$ADHOC_ARCHIVE_PATH" | cut -d' ' -f1)
+    if [[ "$STAGED_SHA" != "$RELEASE_SHA" ]]; then
+        print -u2 "Archive copy mismatch between staging and release."
+        exit 1
+    fi
     cd "$PROJECT_DIR/release"
-    shasum -a 256 "${ADHOC_ARCHIVE_PATH:t}" > "${ADHOC_ARCHIVE_PATH:t}.sha256"
+    print "$RELEASE_SHA  $ARCHIVE_NAME" > "$ARCHIVE_NAME.sha256"
+
+    # Convenience copy of the bundle; the staged copy stays authoritative.
+    rm -rf "$RELEASE_APP_PATH"
+    COPYFILE_DISABLE=1 ditto --norsrc --noextattr --noacl --noqtn "$APP_PATH" "$RELEASE_APP_PATH"
+
     print "Created $ADHOC_ARCHIVE_PATH (ad-hoc; Gatekeeper override required)"
     print "Created $ADHOC_ARCHIVE_PATH.sha256"
+    print "Signed staging bundle: $APP_PATH"
 fi

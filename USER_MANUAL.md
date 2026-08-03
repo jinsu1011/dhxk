@@ -52,12 +52,12 @@ dhxk는 macOS에서 한·영 입력 상태를 착각해 입력한 단어를 두�
 
 ### 공식 파일 확인
 
-- 소스 코드 자동 ZIP이 아니라 Release 자산의 `dhxk-0.3.1-skala-universal-adhoc.zip`을 받는다.
+- 소스 코드 자동 ZIP이 아니라 Release 자산의 `dhxk-0.3.2-skala-universal-adhoc.zip`을 받는다.
 - 같은 Release의 `.sha256` 파일과 다운로드 ZIP의 SHA-256을 비교할 수 있다.
 - 개발자를 확인할 수 없다는 경고는 현재 무료 파일럿판에서 예상되는 동작이다. `앱이 손상됨` 또는 악성코드 경고가 표시되면 실행하지 말고 공식 Release에서 다시 받는다.
 
 ```bash
-shasum -a 256 ~/Downloads/dhxk-0.3.1-skala-universal-adhoc.zip
+shasum -a 256 ~/Downloads/dhxk-0.3.2-skala-universal-adhoc.zip
 ```
 
 ## 4. 권한 설정

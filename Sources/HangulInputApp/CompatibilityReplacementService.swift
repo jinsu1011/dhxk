@@ -20,7 +20,13 @@ final class CompatibilityReplacementService {
 
         for _ in original { postKey(keyCode: 51, source: source) }
         let inserted = replacement + delimiter
-        guard postUnicode(inserted, source: source) else { return false }
+        let insertedSuccessfully: Bool
+        if CompatibilityAppClassifier.prefersPasteReplacement(bundleIdentifier: bundleIdentifier) {
+            insertedSuccessfully = postPaste(inserted, source: source)
+        } else {
+            insertedSuccessfully = postUnicode(inserted, source: source)
+        }
+        guard insertedSuccessfully else { return false }
         last = Record(
             originalWithDelimiter: original + delimiter,
             replacementWithDelimiter: inserted,
@@ -47,7 +53,13 @@ final class CompatibilityReplacementService {
         let originalWithDelimiter = displayedOriginal + delimiter
         for _ in originalWithDelimiter { postKey(keyCode: 51, source: source) }
         let inserted = replacement + delimiter
-        guard postUnicode(inserted, source: source) else { return false }
+        let insertedSuccessfully: Bool
+        if CompatibilityAppClassifier.prefersPasteReplacement(bundleIdentifier: bundleIdentifier) {
+            insertedSuccessfully = postPaste(inserted, source: source)
+        } else {
+            insertedSuccessfully = postUnicode(inserted, source: source)
+        }
+        guard insertedSuccessfully else { return false }
         last = Record(
             originalWithDelimiter: originalWithDelimiter,
             replacementWithDelimiter: inserted,
@@ -73,7 +85,7 @@ final class CompatibilityReplacementService {
             guard let event = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: isDown) else { continue }
             event.flags = flags
             event.setIntegerValueField(.eventSourceUserData, value: KeyboardEventMonitor.syntheticMarker)
-            event.post(tap: .cgSessionEventTap)
+            event.post(tap: .cghidEventTap)
         }
     }
 
@@ -102,8 +114,38 @@ final class CompatibilityReplacementService {
             down.keyboardSetUnicodeString(stringLength: units.count, unicodeString: $0.baseAddress!)
             up.keyboardSetUnicodeString(stringLength: units.count, unicodeString: $0.baseAddress!)
         }
-        down.post(tap: .cgSessionEventTap)
-        up.post(tap: .cgSessionEventTap)
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+        return true
+    }
+
+    // 붙여넣기 경로는 Chromium/Electron 편집기용이다. 변환문에 구분자를 포함해 한 번에
+    // 붙여넣는다. 붙여넣기 직후에 구분자를 따로 보내면 Chromium이 클립보드를 비동기로
+    // 읽는 탓에 구분자가 변환문보다 앞에 삽입되므로(실측: U+00A0 + 변환문) 분리하지 않는다.
+    // 그 대신 ProseMirror 계열 편집기는 붙여넣은 문자열 끝의 공백을 정규화해 지운다.
+    // 알려진 제약으로 문서화한다.
+    private func postPaste(_ text: String, source: CGEventSource) -> Bool {
+        let pasteboard = NSPasteboard.general
+        let savedItems = (pasteboard.pasteboardItems ?? []).map { item in
+            Dictionary(uniqueKeysWithValues: item.types.compactMap { type in
+                item.data(forType: type).map { (type, $0) }
+            })
+        }
+        pasteboard.clearContents()
+        guard pasteboard.setString(text, forType: .string) else { return false }
+        let ownedChangeCount = pasteboard.changeCount
+        postKey(keyCode: 9, flags: .maskCommand, source: source)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            guard pasteboard.changeCount == ownedChangeCount else { return }
+            pasteboard.clearContents()
+            let restoredItems: [NSPasteboardItem] = savedItems.map { values in
+                let item = NSPasteboardItem()
+                for (type, data) in values { item.setData(data, forType: type) }
+                return item
+            }
+            if !restoredItems.isEmpty { _ = pasteboard.writeObjects(restoredItems) }
+        }
         return true
     }
 }
