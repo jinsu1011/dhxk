@@ -19,7 +19,7 @@ macOS에서 한·영 입력 소스를 착각해 입력한 단어를 로컬에서
 - Secure Input, 암호/보호 필드, 로그인 ID·이메일·계정·OTP 필드, 제외 앱에서 입력을 버퍼링하지 않음
 - 숫자·URL·이메일·경로·코드 형태 제외
 - Chrome·Safari·ChatGPT·카카오톡·Notion·Pages·Word 등 일반 텍스트 입력 역할 지원
-- AX 텍스트 범위가 없는 검증된 문서·채팅 앱도 합성 이벤트 표식이 붙은 양방향 대체 교체 사용
+- 포커스된 일반 AX 텍스트 요소가 확인된 문서·채팅 앱에서만 합성 이벤트 표식이 붙은 대체 교체 사용
 - `HIF_DEBUG=1`에서 실제 입력 문자열 없이 점수·판정 이유만 시스템 로그에 기록
 - macOS 내장 한국어·영어 맞춤법 사전으로 변환 전후 어휘 판정
 - 사용자가 적용한 변환은 현재 실행 중에 학습하고, 되돌린 변환은 다시 자동수정하지 않음
@@ -101,14 +101,14 @@ CGEventTap → KeyboardEventMonitor ─┬→ SecurityGuard
 HangulInputCore: DubeolsikConverter → HangulComposer (macOS API 비의존)
 ```
 
-`KeyboardEventMonitor`는 문자 자체 대신 US ANSI 물리 키 코드를 단어 단위로 모읍니다. 경계 키가 눌리기 직전에 현재 입력 소스와 Accessibility의 실제 입력 필드 텍스트를 확인합니다. AX가 정상인 앱은 실제 caret 앞 원문과 정확히 일치할 때만 교체합니다. AX 범위를 제공하지 않는 허용 앱에서 영문→한글은 물리 키 수만큼 삭제합니다. 한글→영어는 물리 키로 화면의 두벌식 문자열을 재구성하고 구분 키로 IME 조합을 먼저 확정한 뒤 실제 조합 문자 수만큼 삭제합니다. 앱이 만든 모든 이벤트에는 marker를 넣어 재귀 감지를 막습니다.
+`KeyboardEventMonitor`는 문자 자체 대신 US ANSI 물리 키 코드를 단어 단위로 최대 128개 모읍니다. 경계 키가 눌리기 직전에 현재 입력 소스와 Accessibility의 포커스된 일반 텍스트 요소를 확인합니다. 앱은 전체 문서 값을 읽지 않고 caret 앞 최대 256 UTF-16 범위만 읽어 원문이 정확히 일치할 때 교체합니다. 포커스 요소를 확인할 수 없으면 fail-closed로 차단합니다. 앱이 만든 모든 이벤트에는 marker를 넣어 재귀 감지를 막습니다.
 
 ## 보안과 제외 조건
 
 - Secure Input 활성화 시 감지/버퍼링 중단
 - `AXSecure` 또는 `AXProtectedContent` 필드와 role이 불확실한 요소 제외
 - `AXTextField`·`AXTextArea`·`AXComboBox` 모두 label/description/identifier/placeholder/DOM metadata에 아이디·로그인·계정·이메일·비밀번호·OTP·PIN·인증 코드가 있으면 제외
-- AX 포커스 정보를 제공하지 않는 앱의 대체 교체는 명시된 문서·채팅 앱 번들 ID에서만 허용하고 Terminal·IDE·원격 앱에는 사용하지 않음
+- AX 포커스 정보를 제공하지 않는 앱은 허용 목록에 있어도 감지·대체 교체하지 않음
 - Terminal, iTerm2, Xcode, VS Code, JetBrains IDE, Microsoft Remote Desktop, TeamViewer 기본 제외
 - Command/Control/Option 조합, 숫자·`@`·`_`·경로 구분자가 포함된 토큰 제외
 - 실제 입력 문자열은 로그에 남기지 않음
@@ -123,8 +123,8 @@ defaults write com.jinsu1011.dhxk ExcludedBundleIDs -array com.example.Editor co
 
 ## 알려진 제한사항
 
-- 앱마다 접근성 구현이 달라 문자 교체 성공 여부도 다릅니다. Chrome·Safari는 AX 경로를 우선 사용하고, 알려진 문서·채팅 앱만 제한적 대체 경로를 사용합니다. 임의의 모든 앱을 무조건 허용하지는 않습니다.
-- AX 정보를 전혀 제공하지 않는 앱의 대체 경로에서는 일반 ID 필드와 본문을 공개 API로 완벽히 구분할 수 없습니다. Secure Input은 항상 차단하지만, 로그인 화면에서는 자동 감지를 꺼 두는 것이 가장 안전합니다.
+- 앱마다 접근성 구현이 달라 문자 교체 성공 여부도 다릅니다. 포커스된 일반 텍스트 AX 요소가 확인되는 경우에만 동작하며 임의의 모든 앱을 허용하지 않습니다.
+- AX 정보를 전혀 제공하지 않는 앱과 입력창은 일반 ID 필드와 본문을 구분할 수 없어 fail-closed로 차단합니다. 로그인 화면에서는 자동 감지도 꺼 두는 것이 가장 안전합니다.
 - 한글 IME 조합 중 Accessibility 값 갱신 시점은 앱마다 다릅니다. 현재 MVP는 경계 키를 누르기 직전 AX 값과 실제 caret 범위를 확인합니다.
 - 판정은 단어 경계 단위입니다. 문서 고빈도 단어와 종결형은 확장했지만 여러 단어로 된 문장 전체의 문맥 모델은 아직 포함하지 않습니다.
 - 키 코드 표는 US ANSI 기반 두벌식 문자 키를 대상으로 합니다. Dvorak/사용자 정의 물리 배열은 후속 지원이 필요합니다.
@@ -132,7 +132,7 @@ defaults write com.jinsu1011.dhxk ExcludedBundleIDs -array com.example.Editor co
 
 ## 배포
 
-`v0.3.0` SKALA 파일럿은 비용 없는 내부 시험을 위해 ad-hoc 서명한 Universal 2 Pre-release로 배포합니다. 사용자는 공식 Release와 SHA-256을 확인하고 시스템 설정 → 개인정보 보호 및 보안에서 `그래도 열기`를 직접 승인해야 합니다. 경고 없는 일반 배포로 전환하려면 Developer ID 서명과 Apple 공증이 필요합니다. 권장 배포 경로와 명령은 [`DISTRIBUTION.md`](DISTRIBUTION.md)에 정리되어 있습니다.
+`v0.3.1` SKALA 파일럿은 비용 없는 내부 시험을 위해 ad-hoc 서명한 Universal 2 Pre-release로 배포합니다. 사용자는 공식 Release와 SHA-256을 확인하고 시스템 설정 → 개인정보 보호 및 보안에서 `그래도 열기`를 직접 승인해야 합니다. 경고 없는 일반 배포로 전환하려면 Developer ID 서명과 Apple 공증이 필요합니다. 권장 배포 경로와 명령은 [`DISTRIBUTION.md`](DISTRIBUTION.md)에 정리되어 있습니다.
 
 현재 파일럿 사용자 흐름은 `GitHub Pre-release → ad-hoc Universal 2 ZIP과 SHA-256 다운로드 → Applications에 복사 → Gatekeeper 예외 승인 → 권한 허용`입니다. 상세 설치 절차는 [`USER_MANUAL.md`](USER_MANUAL.md)를 따릅니다.
 

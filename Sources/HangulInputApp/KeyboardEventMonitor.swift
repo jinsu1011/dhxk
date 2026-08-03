@@ -9,6 +9,7 @@ protocol KeyboardEventMonitorDelegate: AnyObject {
 
 final class KeyboardEventMonitor {
     static let syntheticMarker: Int64 = 0x48494658
+    private static let maxBufferedKeyCount = 128
     weak var delegate: KeyboardEventMonitorDelegate?
     private var eventTap: CFMachPort?
     private var source: CFRunLoopSource?
@@ -91,6 +92,11 @@ final class KeyboardEventMonitor {
         }
         if let pair = Self.keyMap[keyCode] {
             if buffer.isEmpty { delegate?.keyboardMonitorDidResetBuffer() }
+            guard buffer.count < Self.maxBufferedKeyCount else {
+                unsafeTokenContext = true
+                reset(invalidateSuggestion: true)
+                return Unmanaged.passUnretained(event)
+            }
             buffer += shifted ? pair.1 : pair.0
         } else {
             // 숫자, @, _, 괄호 등은 URL·이메일·경로·코드 조각일 수 있으므로

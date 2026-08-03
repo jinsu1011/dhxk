@@ -55,10 +55,8 @@ enum SecurityGuard {
 
     static func isCurrentContextSafe() -> Bool {
         guard !isSecureInputEnabled, !isExcludedFrontmostApp else { return false }
-        if let element = focusedElement() { return isSafeTextElement(element) }
-        return CompatibilityAppClassifier.supportsFallback(
-            bundleIdentifier: NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        )
+        guard let element = focusedElement() else { return false }
+        return isSafeTextElement(element)
     }
 
     static func canUseCompatibilityFallback() -> Bool {
@@ -66,9 +64,9 @@ enum SecurityGuard {
               CompatibilityAppClassifier.supportsFallback(
                 bundleIdentifier: NSWorkspace.shared.frontmostApplication?.bundleIdentifier
               ) else { return false }
-        // AX 정보가 있으면 반드시 안전한 편집 필드로 확인되어야 한다. 정보가 전혀 없는
-        // Electron/채팅 앱에서만 Secure Input과 앱 허용목록을 이용한 대체 경로를 쓴다.
-        guard let element = focusedElement() else { return true }
+        // 포커스된 AX 요소를 확인할 수 없으면 로그인/인증 입력창과 일반 본문을
+        // 구분할 근거가 없으므로 호환 앱에서도 fail-closed로 차단한다.
+        guard let element = focusedElement() else { return false }
         return isSafeTextElement(element)
     }
 

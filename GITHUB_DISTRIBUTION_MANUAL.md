@@ -129,8 +129,8 @@ git diff --check
 ```bash
 SIGNING_IDENTITY="Developer ID Application: 이름 (TEAMID)" \
 BUNDLE_ID="com.example.dhxk" \
-VERSION="0.3.0" \
-BUILD_NUMBER="3" \
+VERSION="0.3.1" \
+BUILD_NUMBER="5" \
 SKALA_REGISTRATION_REQUIRED=true \
 REGISTRATION_ENDPOINT="https://script.google.com/macros/s/DEPLOYMENT_ID/exec" \
 make universal

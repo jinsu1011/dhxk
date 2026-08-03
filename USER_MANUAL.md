@@ -52,12 +52,12 @@ dhxk는 macOS에서 한·영 입력 상태를 착각해 입력한 단어를 두�
 
 ### 공식 파일 확인
 
-- 소스 코드 자동 ZIP이 아니라 Release 자산의 `dhxk-0.3.0-skala-universal-adhoc.zip`을 받는다.
+- 소스 코드 자동 ZIP이 아니라 Release 자산의 `dhxk-0.3.1-skala-universal-adhoc.zip`을 받는다.
 - 같은 Release의 `.sha256` 파일과 다운로드 ZIP의 SHA-256을 비교할 수 있다.
 - 개발자를 확인할 수 없다는 경고는 현재 무료 파일럿판에서 예상되는 동작이다. `앱이 손상됨` 또는 악성코드 경고가 표시되면 실행하지 말고 공식 Release에서 다시 받는다.
 
 ```bash
-shasum -a 256 ~/Downloads/dhxk-0.3.0-skala-universal-adhoc.zip
+shasum -a 256 ~/Downloads/dhxk-0.3.1-skala-universal-adhoc.zip
 ```
 
 ## 4. 권한 설정
@@ -139,9 +139,10 @@ Accessibility 표준 텍스트 입력을 제공하는 대부분의 일반 앱에
 - 원격 데스크톱과 TeamViewer
 - Command·Control·Option이 포함된 단축키
 - URL, 이메일, 경로, 숫자, 코드 형태
+- 포커스된 일반 텍스트 요소를 Accessibility로 확인할 수 없는 입력창
 - 사용자가 자동 감지를 끈 상태
 
-접근성 정보를 전혀 제공하지 않는 일부 앱에서는 일반 ID 필드와 본문을 완벽하게 구분할 수 없다. 로그인·결제·인증 화면에서는 메뉴의 `자동 감지 끄기`를 사용하는 것이 가장 안전하다.
+접근성 정보를 전혀 제공하지 않는 입력창은 일반 ID 필드와 본문을 구분할 근거가 없으므로 자동 감지를 차단한다. 로그인·결제·인증 화면에서는 추가로 메뉴의 `자동 감지 끄기`를 사용하는 것이 가장 안전하다.
 
 ## 9. 로그인할 때 자동 실행
 

@@ -4,7 +4,11 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync('Backend/GoogleAppsScript/Code.gs', 'utf8');
 const context = vm.createContext({});
-vm.runInContext(`${source}\nglobalThis.parseForTest = parseRegistrationRequest;`, context);
+vm.runInContext(`${source}
+globalThis.parseForTest = parseRegistrationRequest;
+globalThis.registrationKeyForTest = registrationKey;
+globalThis.hasDuplicateForTest = hasDuplicateRegistration;
+globalThis.nextDailyCountForTest = nextDailyRegistrationCount;`, context);
 
 const validRegistration = {
   campus: '판교캠퍼스',
@@ -28,5 +32,17 @@ assert.equal(parse({...validRegistration, classNumber: '3'}).error, 'invalid_cla
 assert.equal(parse({...validRegistration, name: '=IMPORTXML'}).error, 'invalid_name');
 assert.equal(parse({...validRegistration, appVersion: '=1+1'}).error, 'invalid_version');
 assert.equal(parse({...validRegistration, consentVersion: 'old'}).error, 'invalid_consent');
+assert.equal(parse({...validRegistration, unexpected: true}).error, 'invalid_request');
+assert.equal(context.registrationKeyForTest('판교캠퍼스', 9, '김진수'), '판교캠퍼스\u00009반\u0000김진수');
+const duplicateSheet = {
+  getLastRow: () => 2,
+  getRange: () => ({getDisplayValues: () => [['판교캠퍼스', '9반', '김진수']]})
+};
+assert.equal(context.hasDuplicateForTest(duplicateSheet, '판교캠퍼스', 9, '김진수'), true);
+assert.equal(context.hasDuplicateForTest(duplicateSheet, '광주캠퍼스', 9, '김진수'), false);
+assert.equal(context.nextDailyCountForTest(null, 500), 1);
+assert.equal(context.nextDailyCountForTest('499', 500), 500);
+assert.equal(context.nextDailyCountForTest('500', 500), null);
+assert.equal(context.nextDailyCountForTest('broken', 500), null);
 
-console.log('RESULT: 10/10 backend registration checks passed');
+console.log('RESULT: 18/18 backend registration checks passed');

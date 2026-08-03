@@ -2,6 +2,7 @@ import ApplicationServices
 import Foundation
 
 final class TextReplacementService {
+    private static let maxContextUTF16Length = 256
     private let history: CorrectionHistory
     init(history: CorrectionHistory) { self.history = history }
 
@@ -13,27 +14,25 @@ final class TextReplacementService {
         guard !SecurityGuard.isSecureInputEnabled, !SecurityGuard.isExcludedFrontmostApp,
               let element = focusedElement(), SecurityGuard.isSafeTextElement(element),
               let context = textContext(element) else { return nil }
-        let prefix = String(context.value.prefix(context.caretCharacterOffset))
-        return prefix.split(whereSeparator: Self.isBoundary).last.map(String.init)
+        return context.prefix.split(whereSeparator: Self.isBoundary).last.map(String.init)
     }
 
     func replaceCurrentToken(original: String, with replacement: String, delimiter: String) -> Bool {
         guard !SecurityGuard.isSecureInputEnabled, !SecurityGuard.isExcludedFrontmostApp,
               let element = focusedElement(), SecurityGuard.isSafeTextElement(element),
               let context = textContext(element) else { return false }
-        let nsValue = context.value as NSString
-        let prefix = nsValue.substring(to: context.selectedRange.location)
         let originalWithDelimiter = original + delimiter
         let replacedLength: Int
-        if prefix.hasSuffix(originalWithDelimiter) {
+        if context.prefix.hasSuffix(originalWithDelimiter) {
             // 제안 모드: 구분 문자가 이미 대상 앱에 입력된 뒤 메뉴에서 적용한다.
             replacedLength = (originalWithDelimiter as NSString).length
-        } else if prefix.hasSuffix(original) {
+        } else if context.prefix.hasSuffix(original) {
             // 자동수정 모드: 이벤트 탭이 구분 문자를 억제한 상태에서 즉시 적용한다.
             replacedLength = (original as NSString).length
         } else {
             return false
         }
+        guard context.selectedRange.location >= replacedLength else { return false }
         let range = CFRange(location: context.selectedRange.location - replacedLength, length: replacedLength)
         let inserted = replacement + delimiter
         guard setSelectedRange(range, on: element),
@@ -54,10 +53,8 @@ final class TextReplacementService {
               let item = history.last,
               let focused = focusedElement(), CFEqual(focused, item.element),
               SecurityGuard.isSafeTextElement(item.element),
-              let current = value(of: item.element) else { return false }
-        let ns = current as NSString
-        guard item.range.location + item.range.length <= ns.length,
-              ns.substring(with: NSRange(location: item.range.location, length: item.range.length)) == item.replacementWithDelimiter,
+              let current = string(in: item.range, of: item.element),
+              current == item.replacementWithDelimiter,
               setSelectedRange(item.range, on: item.element),
               AXUIElementSetAttributeValue(item.element, kAXSelectedTextAttribute as CFString, item.originalWithDelimiter as CFTypeRef) == .success
         else { return false }
@@ -66,14 +63,7 @@ final class TextReplacementService {
         return true
     }
 
-    private func value(of element: AXUIElement) -> String? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value) == .success else { return nil }
-        return value as? String
-    }
-
-    private func textContext(_ element: AXUIElement) -> (value: String, selectedRange: CFRange, caretCharacterOffset: Int)? {
-        guard let value = value(of: element) else { return nil }
+    private func textContext(_ element: AXUIElement) -> (prefix: String, selectedRange: CFRange)? {
         var rangeValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeValue) == .success,
               let rangeValue, CFGetTypeID(rangeValue) == AXValueGetTypeID() else { return nil }
@@ -81,10 +71,24 @@ final class TextReplacementService {
         guard AXValueGetType(axValue) == .cfRange else { return nil }
         var range = CFRange()
         guard AXValueGetValue(axValue, .cfRange, &range), range.length == 0 else { return nil }
-        let ns = value as NSString
-        guard range.location >= 0, range.location <= ns.length else { return nil }
-        let characterOffset = String(ns.substring(to: range.location)).count
-        return (value, range, characterOffset)
+        guard range.location >= 0 else { return nil }
+        let prefixLength = min(range.location, Self.maxContextUTF16Length)
+        let prefixRange = CFRange(location: range.location - prefixLength, length: prefixLength)
+        guard let prefix = string(in: prefixRange, of: element) else { return nil }
+        return (prefix, range)
+    }
+
+    private func string(in range: CFRange, of element: AXUIElement) -> String? {
+        var mutable = range
+        guard let rangeValue = AXValueCreate(.cfRange, &mutable) else { return nil }
+        var value: CFTypeRef?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element,
+            kAXStringForRangeParameterizedAttribute as CFString,
+            rangeValue,
+            &value
+        ) == .success else { return nil }
+        return value as? String
     }
 
     private func setSelectedRange(_ range: CFRange, on element: AXUIElement) -> Bool {
